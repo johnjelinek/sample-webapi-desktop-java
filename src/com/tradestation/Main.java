@@ -101,28 +101,13 @@ public class Main {
                     quote.getLastPriceDisplay(), quote.getCountryCode(), quote.getCurrency(), quote.getAssetType()));
         }
 
-        // New up an order
-        Order order = new Order(quotes.get(0).getDescription(), null,
-                QuoteAssetTypeToOrderAssetType(quotes.get(0).getAssetType()), quotes.get(0).getSymbol(), "1",
-                quotes.get(0).getLastPriceDisplay(), null, "Limit", "Intelligent", "DAY",
-                Integer.parseInt(accountKeys[0]), "", "buy", true, null, new ArrayList<GroupOrder>());
-        System.out.println(String.format("Trying to place an order of %s share of %s at %s",
-                order.getQuantity(), order.getSymbol(), order.getLimitPrice()));
-
-        // Get an Order Estimate
-        Confirm confirmation = api.confirmOrder(order).get(0);
-        if (confirmation.getStatusCode() != null && confirmation.getStatusCode().equals("400")) {
-            System.out.println(String.format("Message: %s\t\tStatus Code: %s",
-                    confirmation.getMessage(), confirmation.getStatusCode()));
-        } else {
-            System.out.println(String.format("SummaryMessage: %s", confirmation.getSummaryMessage()));
-        }
-
         // Place an Order
-        ArrayList<OrderResult> orderResults = api.placeOrder(order);
-        System.out.println(String.format("Message: %s\t\tStatus Code: %s",
-                orderResults.get(0).getMessage(),
-                orderResults.get(0).getStatusCode()));
+        placeOrder(quotes.get(0), // the first quote in my ArrayList
+                "buy", // the tradeAction
+                "1", // the tradeQuantity
+                api, // the WebAPI library
+                accountKeys[2], // the accountKey index in my array that handles Futures
+                new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new Date())); // Date String for Now
 
         // Check Order Status
         orders = api.getOrders(accountKeys);
@@ -194,4 +179,46 @@ public class Main {
             return quoteAssetType;
         }
     }
+
+    public static void placeOrder(Quote quote, String tradeAction, String tradeQuantity,
+                                  TradeStationWebApi api, String accountKey, String timeStamp) {
+        Order order = new Order(quote.getDescription(), null, QuoteAssetTypeToOrderAssetType(quote.getAssetType()),
+                quote.getSymbol(), tradeQuantity, Double.toString(quote.getLast() + 1), null, "Limit", "Intelligent", "DAY",
+                Integer.parseInt(accountKey), "", tradeAction, true, null, new ArrayList<GroupOrder>());
+
+        System.out.println(String.format("Trying to place an order of %s share of %s at %s",
+                order.getQuantity(), order.getSymbol(), order.getLimitPrice()));
+
+        // Get an Order Estimate
+        Confirm confirmation = api.confirmOrder(order).get(0);
+        if (confirmation.getStatusCode() != null && confirmation.getStatusCode().equals("400")) {
+            System.out.println(String.format("Message: %s\t\tStatus Code: %s",
+                    confirmation.getMessage(), confirmation.getStatusCode()));
+        } else {
+            System.out.println(String.format("SummaryMessage: %s", confirmation.getSummaryMessage()));
+        }
+
+        // Place an Order
+        ArrayList<OrderResult> orderResults = api.placeOrder(order);
+        System.out.println(String.format("Message: %s\t\tStatus Code: %s",
+                orderResults.get(0).getMessage(),
+                orderResults.get(0).getStatusCode()));
+
+        // Check Order Status
+        ArrayList<OrderDetail> orders = api.getOrders(new String[]{accountKey});
+        if (orders.size() == 0) {
+            System.out.println("No Orders to Display");
+        } else {
+            System.out.println("Order Requests:");
+            for (OrderDetail orderDetail : orders) {
+                System.out.println(
+                        String.format("Account ID: %s\t\tOrder ID: %s\t\tSymbol: %s\t\tQuantity: %s\t\tStatus: %s",
+                                orderDetail.getAccountID(), orderDetail.getOrderID(), orderDetail.getSymbol(),
+                                orderDetail.getQuantity(), orderDetail.getStatusDescription()));
+            }
+        }
+
+        System.out.println(timeStamp);
+    }
+
 }
